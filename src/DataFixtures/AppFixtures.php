@@ -2,6 +2,7 @@
 
 namespace App\DataFixtures;
 
+use App\Entity\City;
 use App\Entity\User;
 use Doctrine\Bundle\FixturesBundle\Fixture;
 use Doctrine\Persistence\ObjectManager;
@@ -16,7 +17,7 @@ class AppFixtures extends Fixture
     }
 
     /**
-     * Loads the three demo accounts the module works with.
+     * Loads the three demo accounts and the ten cities of the network.
      */
     public function load(ObjectManager $manager): void
     {
@@ -39,6 +40,19 @@ class AppFixtures extends Fixture
         $camille->setLastName('Aubert');
         $camille->setCreatedAt(new \DateTimeImmutable('2026-02-04'));
         $manager->persist($camille);
+
+        // les dix villes du réseau, liste fermée par le lore du module de conception
+        $cityNames = [
+            'Paris', 'Lyon', 'Marseille', 'Bordeaux', 'Lille',
+            'Strasbourg', 'Toulouse', 'Nantes', 'Dijon', 'Brest',
+        ];
+
+        foreach ($cityNames as $name) {
+            $city = new City();
+            $city->setName($name);
+            $city->setCreatedAt($now);
+            $manager->persist($city);
+        }
 
         $manager->flush();
     }
