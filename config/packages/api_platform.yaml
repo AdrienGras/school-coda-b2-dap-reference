@@ -14,3 +14,5 @@ api_platform:
         html: ['text/html']
     error_formats:
         jsonproblem: ['application/problem+json']
+    exception_to_status:
+        App\Exception\User\EmailAlreadyUsedException: 409
