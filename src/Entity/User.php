@@ -2,8 +2,13 @@
 
 namespace App\Entity;
 
+use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Post;
+use App\Dto\User\UserDetailsOutput;
+use App\Dto\User\UserRegisterInput;
 use App\Entity\Impl\AbstractEntity;
 use App\Repository\UserRepository;
+use App\State\User\UserRegisterProcessor;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
@@ -13,6 +18,14 @@ use Symfony\Component\Uid\Uuid;
 #[ORM\Entity(repositoryClass: UserRepository::class)]
 #[ORM\Table(name: '`user`')]
 #[ORM\UniqueConstraint(name: 'UNIQ_IDENTIFIER_EMAIL', fields: ['email'])]
+#[ApiResource(operations: [
+    new Post(
+        uriTemplate: '/auth/register',
+        input: UserRegisterInput::class,
+        output: UserDetailsOutput::class,
+        processor: UserRegisterProcessor::class,
+    ),
+])]
 class User extends AbstractEntity implements UserInterface, PasswordAuthenticatedUserInterface
 {
     #[ORM\Id]
