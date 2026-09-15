@@ -24,3 +24,6 @@ api_platform:
         App\Exception\User\EmailAlreadyUsedException: 409
         App\Exception\City\CityNotFoundException: 422
         App\Exception\Trip\TripNotFoundException: 404
+        App\Exception\Cart\CartNotFoundException: 404
+        App\Exception\Cart\CartAlreadyPaidException: 409
+        App\Exception\Cart\CartLineNotFoundException: 404
