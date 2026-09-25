@@ -8,12 +8,15 @@ use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Post;
 use App\Dto\Cart\CartAddLineInput;
 use App\Dto\Cart\CartDetailsOutput;
+use App\Dto\Cart\CartPayInput;
+use App\Dto\Cart\CartPayOutput;
 use App\Entity\Enum\CartStatus;
 use App\Entity\Impl\AbstractEntity;
 use App\Repository\CartRepository;
 use App\State\Cart\CartAddLineProcessor;
 use App\State\Cart\CartCollectionProvider;
 use App\State\Cart\CartOpenProcessor;
+use App\State\Cart\CartPayProcessor;
 use App\State\Cart\CartProvider;
 use App\State\Cart\CartRemoveLineProcessor;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -58,6 +61,18 @@ use Symfony\Component\Uid\Uuid;
         // la même expression que l'opération précédente, servie par le même provider : les deux
         // portent sur la même ressource, le panier
         security: "object.getCreatedBy() == user",
+    ),
+    new Post(
+        uriTemplate: '/carts/{id}/pay',
+        input: CartPayInput::class,
+        output: CartPayOutput::class,
+        // le provider et l'expression de l'étape 7, sans rien y changer : régler porte sur la
+        // même ressource que composer, le panier
+        provider: CartProvider::class,
+        processor: CartPayProcessor::class,
+        security: "object.getCreatedBy() == user",
+        // le contrat déclare 200 : on ne crée pas de ressource adressable, on règle un panier
+        status: 200,
     ),
 ])]
 class Cart extends AbstractEntity

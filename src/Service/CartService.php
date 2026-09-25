@@ -5,11 +5,14 @@ namespace App\Service;
 use App\Dto\Cart\CartAddLineInput;
 use App\Dto\Cart\CartDetailsOutput;
 use App\Dto\Cart\CartLineOutput;
+use App\Dto\Cart\CartPayOutput;
 use App\Entity\Cart;
 use App\Entity\CartItem;
 use App\Entity\Enum\CartStatus;
+use App\Entity\Ticket;
 use App\Entity\User;
 use App\Exception\Cart\CartAlreadyPaidException;
+use App\Exception\Cart\CartEmptyException;
 use App\Exception\Cart\CartLineNotFoundException;
 use App\Exception\Cart\CartNotFoundException;
 use App\Exception\Trip\TripNotFoundException;
@@ -22,6 +25,7 @@ class CartService
     // aucun collaborateur n'est construit ici, tous sont demandés au conteneur
     public function __construct(
         private readonly TripService $tripService,
+        private readonly TicketService $ticketService,
         private readonly CartRepository $cartRepository,
         private readonly AuditService $audit,
     ) {
@@ -154,6 +158,67 @@ class CartService
         }
 
         $this->cartRepository->flush();
+    }
+
+    /**
+     * Pays this cart: issues its tickets and marks it as paid, in a single write.
+     *
+     * @return Ticket[] the tickets issued
+     *
+     * @throws CartAlreadyPaidException when the cart has already been paid
+     * @throws CartEmptyException       when the cart carries no line
+     */
+    public function pay(Cart $cart): array
+    {
+        if (CartStatus::Paid === $cart->getStatus()) {
+            throw new CartAlreadyPaidException();
+        }
+
+        // une ligne retirée n'est pas chargée, le filtre de suppression douce l'écarte : elle ne
+        // compte pas, et ne donnera aucun billet
+        if ($cart->getItems()->isEmpty()) {
+            throw new CartEmptyException();
+        }
+
+        // fabriquer un billet appartient au domaine des billets : ce service passe par le sien
+        $tickets = $this->ticketService->issue($cart);
+
+        $cart->setStatus(CartStatus::Paid);
+
+        // la première modification du module qui n'est ni une création ni une suppression
+        $this->audit->stampUpdate($cart);
+
+        // un seul flush, donc une seule transaction : les billets et le statut s'écrivent
+        // ensemble, ou pas du tout. Le flush d'un repository écrit tout ce que l'unité de travail
+        // a en attente, les billets persistés par le leur compris
+        $this->cartRepository->flush();
+
+        return $tickets;
+    }
+
+    /**
+     * Returns the confirmation reference of this cart, derived from its identity.
+     */
+    public function confirmationOf(Cart $cart): string
+    {
+        // la fin de l'identifiant, pas son début : un UUID v7 commence par son horodatage
+        $suffix = strtoupper(substr($cart->getId()->toRfc4122(), -6));
+
+        return sprintf('ONTB-%s-%s', $cart->getCreatedAt()->format('Y'), $suffix);
+    }
+
+    /**
+     * Maps a paid cart and its tickets onto the payload served by the payment endpoint.
+     *
+     * @param Ticket[] $tickets
+     */
+    public function toPayment(Cart $cart, array $tickets): CartPayOutput
+    {
+        return new CartPayOutput(
+            confirmation: $this->confirmationOf($cart),
+            // la transformation d'un billet reste au domaine des billets
+            tickets: array_map($this->ticketService->toList(...), $tickets),
+        );
     }
 
     /**
