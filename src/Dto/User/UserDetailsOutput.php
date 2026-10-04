@@ -41,6 +41,14 @@ final class UserDetailsOutput
             'format' => 'date-time',
         ])]
         public readonly \DateTimeImmutable $createdAt,
+
+        #[ApiProperty(schema: [
+            'type' => 'string',
+            'description' => 'L\'adresse signée de la photo de profil, valable quinze minutes',
+            'format' => 'uri',
+            'nullable' => true,
+        ])]
+        public readonly null|string $profilePictureUrl,
     ) {
     }
 }

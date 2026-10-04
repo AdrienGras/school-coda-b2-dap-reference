@@ -1,0 +1,4 @@
+coop_tilleuls_url_signer:
+    signature_key: '%env(string:SIGNATURE_KEY)%'
+    # un entier : un nombre de secondes, ajouté à l'heure de chaque signature
+    default_expiration: '%env(int:DOCUMENT_URL_TTL)%'

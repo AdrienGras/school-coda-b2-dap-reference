@@ -3,7 +3,9 @@
 namespace App\Service;
 
 use App\Dto\User\UserDetailsOutput;
+use App\Dto\User\UserProfilePictureInput;
 use App\Dto\User\UserRegisterInput;
+use App\Entity\Enum\DocumentType;
 use App\Entity\User;
 use App\Exception\User\EmailAlreadyUsedException;
 use App\Repository\UserRepository;
@@ -18,6 +20,7 @@ class UserService
         private readonly UserPasswordHasherInterface $passwordHasher,
         private readonly AuditService $audit,
         private readonly LoggerInterface $domainLogger,
+        private readonly DocumentService $documentService,
     ) {
     }
 
@@ -52,16 +55,42 @@ class UserService
     }
 
     /**
+     * Stores a new profile picture for this user and soft-deletes the previous one,
+     * in a single write.
+     */
+    public function changeProfilePicture(User $user, UserProfilePictureInput $input): void
+    {
+        // ranger un document appartient au domaine des documents : ce service passe par le sien
+        $document = $this->documentService->store($input->file, DocumentType::ProfilePicture);
+
+        $previous = $user->getProfilePicture();
+
+        // l'ancienne photo n'est pas effacée : son document est marqué, son fichier reste
+        if (null !== $previous) {
+            $this->documentService->softDelete($previous);
+        }
+
+        $user->setProfilePicture($document);
+
+        // un seul flush : le nouveau document, l'ancien marqué et l'utilisateur s'écrivent ensemble
+        $this->userRepository->flush();
+    }
+
+    /**
      * Turns an account into the payload of its detailed representation.
      */
     public function toDetails(User $user): UserDetailsOutput
     {
+        $picture = $user->getProfilePicture();
+
         return new UserDetailsOutput(
             id: (string) $user->getId(),
             email: $user->getEmail(),
             firstName: $user->getFirstName(),
             lastName: $user->getLastName(),
             createdAt: $user->getCreatedAt(),
+            // une adresse fraîche à chaque lecture : elle expire, le client rappelle /users/me
+            profilePictureUrl: null === $picture ? null : $this->documentService->toSignedUrl($picture),
         );
     }
 }
